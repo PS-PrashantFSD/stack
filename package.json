@@ -1,4 +1,6 @@
 {
+  "proxy": "https://luminexa.onrender.com",
+
   "dependencies": {
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
