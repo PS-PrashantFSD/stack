@@ -27,7 +27,8 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'))
+app.use('/images', express.static('public/images'));
+app.use('/videos', express.static('public/videos')); // Changed to '/videos'
 
 // Routes
 app.use('/auth', authController);
