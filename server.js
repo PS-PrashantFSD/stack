@@ -8,6 +8,7 @@ const userDetailsController = require('./controller/userDetailsController');
 
 dotenv.config();
 const app = express();
+
 const port = process.env.PORT || 8000;
 
 // MongoDB Connection
@@ -26,8 +27,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/images', express.static('public/images'));
-app.use('/videos', express.static('public/videos')); // Changed to '/videos'
+app.use(express.static('public'))
 
 // Routes
 app.use('/auth', authController);
