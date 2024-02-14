@@ -22,13 +22,14 @@ const connect = async () => {
 };
 
 // Middleware
+app.use('/images', express.static('public/images'));
+app.use('/videos', express.static('public/videos'));
 app.use(cors({
   origin: 'http://localhost:3000', // Adjust according to your frontend's origin
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/images', cors(), express.static('public/images'));
-app.use('/videos', cors(), express.static('public/videos'));
+
 
 // Routes
 app.use('/auth', authController);
