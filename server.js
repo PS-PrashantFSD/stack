@@ -2,6 +2,9 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
 
 const authController = require("./controller/authController");
 const userDetailsController = require('./controller/userDetailsController');
@@ -15,6 +18,7 @@ const port = process.env.PORT || 8000;
 const connect = async () => {
     try {
         await mongoose.connect(process.env.MONGO_URI);
+
         console.log("MongoDB connected");
     } catch (error) {
         console.error("Error connecting to MongoDB:", error.message);
@@ -22,14 +26,21 @@ const connect = async () => {
 };
 
 // Middleware
-app.use('/images', express.static('public/images'));
-app.use('/videos', express.static('public/videos'));
 app.use(cors({
-  origin: 'http://localhost:3000', // Adjust according to your frontend's origin
+  origin: process.env.CORS_ORIGIN || 'https://manwith.netlify.app/',
 }));
+app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+});
+app.use(limiter);
+
+// Logger
+app.use(morgan('tiny'));
 
 // Routes
 app.use('/auth', authController);
@@ -37,8 +48,9 @@ app.use('/details', userDetailsController);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
+    const statusCode = err.statusCode || 500;
     console.error(err.stack);
-    res.status(500).send('Something broke!');
+    res.status(statusCode).json({ message: err.message || 'Internal Server Error' });
 });
 
 // Start Server

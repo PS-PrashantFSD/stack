@@ -1,9 +1,33 @@
 const userDetailsController = require('express').Router();
-const Details = require("../model/UserDetailsModel");
-const verifyToken = require('../middleware/verifyToken');
-const upload = require('../middleware/multerConfig'); // Assuming multerConfig.js is in the config directory
-const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
+const streamifier = require('streamifier');
+const Details = require("../model/UserDetailsModel"); // Adjust path as necessary
+const verifyToken = require('../middleware/verifyToken'); // Adjust path as necessary
 
+cloudinary.config({ 
+    cloud_name: 'dwsqva6cj', 
+    api_key: '451457421815733', 
+    api_secret: 'ziys4s_P7mmRI-q_xlpvCBHTb1Q'
+  });
+
+// Multer setup for parsing multipart/form-data
+const upload = multer();
+
+
+// Helper function for uploading files to Cloudinary
+const uploadToCloudinary = (file, folderName) => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            { folder: folderName, resource_type: 'auto' },
+            (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+            }
+        );
+        streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+};
 
 // Get user details
 userDetailsController.get('/view/:userId', async (req, res) => {
@@ -15,28 +39,27 @@ userDetailsController.get('/view/:userId', async (req, res) => {
             return res.status(404).json({ message: "User details not found." });
         }
 
-        // Assuming your server is set up to serve static files from the 'public' directory
-        // Adjust the host, port, and paths as necessary based on your actual server setup
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        const image = details.image ? `${baseUrl}/images/${details.image}` : null;
-        const video = details.video ? `${baseUrl}/video/${details.video}` : null;
-
-        // Return the details along with the accessible URLs for the image and video
-        return res.status(200).json({
-            ...details.toObject(),
-            image,
-            video,
-        });
+        // Return the details directly as URLs are already Cloudinary URLs
+        return res.status(200).json(details);
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
 });
 
-// Add new details with file upload
+// Add new details with Cloudinary file upload
 userDetailsController.post('/add', verifyToken, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
     try {
-        const imagePath = req.files['image'] ? req.files['image'][0].path.replace('public/', '') : null;
-        const videoPath = req.files['video'] ? req.files['video'][0].path.replace('public/', '') : null;
+        let imagePath = null, videoPath = null;
+
+        if (req.files['image'] && req.files['image'][0]) {
+            const imageResult = await uploadToCloudinary(req.files['image'][0], 'user_images');
+            imagePath = imageResult.secure_url;
+        }
+
+        if (req.files['video'] && req.files['video'][0]) {
+            const videoResult = await uploadToCloudinary(req.files['video'][0], 'user_videos');
+            videoPath = videoResult.secure_url;
+        }
 
         const details = await Details.create({
             ...req.body,
@@ -44,44 +67,42 @@ userDetailsController.post('/add', verifyToken, upload.fields([{ name: 'image', 
             image: imagePath,
             video: videoPath
         });
+
         return res.status(201).json(details);
     } catch (error) {
-        return res.status(500).json(error.message);
+        return res.status(500).json({ message: error.message });
     }
 });
 
-// Update existing details with file upload
-userDetailsController.put('/updatedetails/:id', verifyToken, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+// Update existing details with Cloudinary file upload
+userDetailsController.put('/update/:id', verifyToken, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
     try {
         const details = await Details.findById(req.params.id);
         if (!details) {
-            return res.status(404).json("Details not found");
+            return res.status(404).json({ message: "Details not found" });
         }
 
         if (details.userId.toString() !== req.user.id) {
-            return res.status(403).json("You can only update your own details");
+            return res.status(403).json({ message: "You can only update your own details" });
         }
 
-        // Delete old files if new ones are uploaded
         const updates = {};
-        if (req.files['image']) {
-            if (details.image && fs.existsSync(`public/${details.image}`)) {
-                fs.unlinkSync(`public/${details.image}`);
-            }
-            updates.image = req.files['image'][0].path.replace('public/', '');
+
+        if (req.files['image'] && req.files['image'][0]) {
+            const imageResult = await uploadToCloudinary(req.files['image'][0], 'user_images');
+            updates.image = imageResult.secure_url;
         }
-        if (req.files['video']) {
-            if (details.video && fs.existsSync(`public/${details.video}`)) {
-                fs.unlinkSync(`public/${details.video}`);
-            }
-            updates.video = req.files['video'][0].path.replace('public/', '');
+
+        if (req.files['video'] && req.files['video'][0]) {
+            const videoResult = await uploadToCloudinary(req.files['video'][0], 'user_videos');
+            updates.video = videoResult.secure_url;
         }
 
         const updatedDetails = await Details.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true });
 
         return res.status(200).json(updatedDetails);
     } catch (error) {
-        return res.status(500).json(error.message);
+        return res.status(500).json({ message: error.message });
     }
 });
 
