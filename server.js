@@ -21,26 +21,15 @@ const connect = async () => {
     }
 };
 
-// CORS Middleware - Set up before serving static files and other routes
+// Middleware
+app.use('/images', express.static('public/images'));
+app.use('/videos', express.static('public/videos'));
 app.use(cors({
   origin: 'http://localhost:3000', // Adjust according to your frontend's origin
-  // You can add more configuration options as needed
 }));
-
-// Middleware for serving static files with CORS headers
-app.use('/images', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-  next();
-}, express.static('public/images'));
-
-app.use('/videos', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-  next();
-}, express.static('public/videos'));
-
-// Body parsing Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 
 // Routes
 app.use('/auth', authController);
