@@ -27,7 +27,7 @@ const connect = async () => {
 
 // Middleware
 app.use(cors({
-  origin:'https://manwith.netlify.app/',
+  origin:'https://manwith.netlify.app',
 }));
 app.use(helmet());
 app.use(express.json());

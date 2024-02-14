@@ -1,5 +1,5 @@
 {
-  "proxy": "https://luminexa.onrender.com",
+  
 
   "dependencies": {
     "bcrypt": "^5.1.1",
